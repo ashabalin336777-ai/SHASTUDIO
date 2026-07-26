@@ -1,0 +1,71 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: shastudio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shastudio
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shastudio-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/shastudio?schema=public
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@shastudio.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
+      ADMIN_PASSWORD_FORCE: ${ADMIN_PASSWORD_FORCE:-false}
+      VSELLM_API_KEY: ${VSELLM_API_KEY}
+      VSELLM_BASE_URL: ${VSELLM_BASE_URL}
+      VSELLM_MODEL: ${VSELLM_MODEL}
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    command: sh -c "npx prisma migrate deploy || npx prisma db push; npm run dev"
+
+  # Frontend Next.js
+  # Note: no source bind-mount on Windows — Next.js exits under Docker Desktop bind mounts.
+  # Rebuild image after frontend changes, or run `npm run dev` locally on port 3010.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: shastudio-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_VSELLM_API_KEY: ${NEXT_PUBLIC_VSELLM_API_KEY}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: http://localhost:3010
+    ports:
+      - "3010:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_node_modules:

@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  fullName       String
+  title          String?
+  bio            String?
+  avatar         String?
+  location       String?
+  email          String?
+  phone          String?
+  website        String?
+  telegram       String?
+  max            String?
+  github         String?
+  linkedin       String?
+  mbtiType       String?
+  personalTraits String[]
+  skills         String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("profile")
+}
+
+model Experience {
+  id               String   @id @default(cuid())
+  company          String
+  companyLogo      String?
+  companyWebsite   String?
+  startYear        Int
+  startMonth       Int
+  endYear          Int?
+  endMonth         Int?
+  isCurrent        Boolean  @default(false)
+  city             String?
+  country          String?
+  remote           Boolean  @default(false)
+  position         String
+  department       String?
+  description      String?
+  responsibilities String[]
+  achievements     String[]
+  technologies     String[]
+  isActive         Boolean  @default(true)
+  order            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("experiences")
+  @@index([isActive])
+  @@index([startYear, startMonth])
+}
+
+model Education {
+  id             String   @id @default(cuid())
+  institution    String
+  logo           String?
+  website        String?
+  degree         String
+  field          String?
+  startYear      Int
+  startMonth     Int?
+  endYear        Int?
+  endMonth       Int?
+  isCurrent      Boolean  @default(false)
+  description    String?
+  gpa            String?
+  certificate    String?
+  certificateUrl String?
+  isActive       Boolean  @default(true)
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("education")
+  @@index([isActive])
+}
+
+model Course {
+  id             String    @id @default(cuid())
+  title          String
+  provider       String
+  platform       String?
+  startDate      DateTime?
+  endDate        DateTime?
+  certificate    String?
+  certificateUrl String?
+  description    String?
+  skills         String[]
+  isActive       Boolean   @default(true)
+  order          Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("courses")
+  @@index([isActive])
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  description  String?
+  content      String?
+  image        String?
+  images       String[]
+  category     String?
+  tags         String[]
+  link         String?
+  demo         String?
+  github       String?
+  technologies String[]
+  isActive     Boolean  @default(true)
+  featured     Boolean  @default(false)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("projects")
+  @@index([isActive])
+  @@index([featured])
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String?
+  content     String
+  coverImage  String?
+  tags        String[]
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("blog_posts")
+  @@index([isPublished])
+  @@index([publishedAt])
+}
+
+model Certificate {
+  id            String    @id @default(cuid())
+  title         String
+  issuer        String
+  issuerLogo    String?
+  issueDate     DateTime
+  expiryDate    DateTime?
+  credentialId  String?
+  credentialUrl String?
+  image         String?
+  description   String?
+  isActive      Boolean   @default(true)
+  order         Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("certificates")
+  @@index([isActive])
+}
+
+model SiteContext {
+  id        String   @id @default(cuid())
+  section   String
+  content   String
+  keywords  String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_context")
+  @@index([section])
+  @@index([isActive])
+}
+
+model SectionMedia {
+  id        String   @id @default(cuid())
+  section   String   @unique
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("section_media")
+}

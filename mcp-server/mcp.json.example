@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "shastudio": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcp-server",
+      "env": {
+        "NEXT_PUBLIC_API_URL": "http://localhost:3001"
+      }
+    }
+  }
+}
