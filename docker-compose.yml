@@ -37,6 +37,7 @@ services:
       VSELLM_API_KEY: ${VSELLM_API_KEY}
       VSELLM_BASE_URL: ${VSELLM_BASE_URL}
       VSELLM_MODEL: ${VSELLM_MODEL}
+    # На проде достаточно доступа из Docker-сети; порт на хост — для отладки
     ports:
       - "3001:3001"
     depends_on:
@@ -45,9 +46,10 @@ services:
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
+      - backend_uploads:/app/uploads
     command: sh -c "npx prisma migrate deploy || npx prisma db push; npm run dev"
 
-  # Frontend Next.js
+  # Frontend Next.js (внутри контейнера порт 3000)
   # Note: no source bind-mount on Windows — Next.js exits under Docker Desktop bind mounts.
   # Rebuild image after frontend changes, or run `npm run dev` locally on port 3010.
   frontend:
@@ -57,15 +59,35 @@ services:
     container_name: shastudio-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      # Браузер ходит на тот же домен; Nginx проксирует /api → backend
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://shastudio.ru}
       NEXT_PUBLIC_VSELLM_API_KEY: ${NEXT_PUBLIC_VSELLM_API_KEY}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: http://localhost:3010
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://shastudio.ru}
     ports:
       - "3010:3000"
     depends_on:
       - backend
 
+  # Nginx reverse proxy + SSL (Timeweb certs)
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: shastudio-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+      - nginx_certbot_www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+
 volumes:
   postgres_data:
   backend_node_modules:
+  backend_uploads:
+  nginx_certbot_www:

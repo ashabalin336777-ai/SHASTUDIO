@@ -36,3 +36,13 @@ tmp/
 
 # Backend uploads (user media)
 backend/uploads/
+
+# SSL private material (Timeweb)
+deploy/certs/*.pem
+deploy/certs/*.key
+deploy/certs/*.crt
+deploy/certs/*.ca-bundle
+!deploy/certs/.gitkeep
+!deploy/certs/README.md
+!deploy/certs/combine-timeweb.sh
+!deploy/certs/combine-timeweb.ps1

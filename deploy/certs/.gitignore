@@ -1,0 +1,5 @@
+deploy/certs/*
+!deploy/certs/.gitkeep
+!deploy/certs/README.md
+!deploy/certs/combine-timeweb.sh
+!deploy/certs/combine-timeweb.ps1
