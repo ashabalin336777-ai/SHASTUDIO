@@ -8,6 +8,7 @@ services:
     build:
       dockerfile: Dockerfile.prod
     ports: []
+    command: ["sh", "-c", "npx prisma migrate deploy || npx prisma db push; exec npx tsx -r dotenv/config src/index.ts"]
     volumes:
       - backend_uploads:/app/uploads
 
