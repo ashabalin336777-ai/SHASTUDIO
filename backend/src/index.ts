@@ -15,6 +15,7 @@ import chatRoutes from './routes/chat'
 import contextRoutes from './routes/context'
 import authRoutes from './routes/auth'
 import mediaRoutes from './routes/media'
+import uploadsRoutes from './routes/uploads'
 import { errorMiddleware } from './lib/http'
 import { ensureAdminUser } from './lib/auth'
 
@@ -49,6 +50,7 @@ app.use('/api/certificates', certificateRoutes)
 app.use('/api/chat', chatRoutes)
 app.use('/api/context', contextRoutes)
 app.use('/api/media', mediaRoutes)
+app.use('/api/uploads', uploadsRoutes)
 
 app.use(errorMiddleware)
 

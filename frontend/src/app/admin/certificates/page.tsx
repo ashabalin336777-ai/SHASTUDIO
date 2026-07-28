@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api'
+import { api, resolveMediaUrl } from '@/lib/api'
 
 type Certificate = {
   id?: string
@@ -31,10 +31,16 @@ const blank = (): Certificate => ({
   order: 0,
 })
 
+function isPdf(url?: string | null) {
+  return !!url && /\.pdf($|\?)/i.test(url)
+}
+
 export default function AdminCertificatesPage() {
   const [items, setItems] = useState<Certificate[]>([])
   const [editing, setEditing] = useState<Certificate | null>(null)
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -54,15 +60,21 @@ export default function AdminCertificatesPage() {
 
   const save = async () => {
     if (!editing) return
-    const payload = {
-      ...editing,
-      issueDate: editing.issueDate,
-      expiryDate: editing.expiryDate || null,
+    setError(null)
+    try {
+      const payload = {
+        ...editing,
+        issueDate: editing.issueDate,
+        expiryDate: editing.expiryDate || null,
+        image: editing.image?.trim() || null,
+      }
+      if (editing.id) await api.put(`/api/certificates/${editing.id}`, payload)
+      else await api.post('/api/certificates', payload)
+      setEditing(null)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка сохранения')
     }
-    if (editing.id) await api.put(`/api/certificates/${editing.id}`, payload)
-    else await api.post('/api/certificates', payload)
-    setEditing(null)
-    load()
   }
 
   const remove = async (id?: string) => {
@@ -71,13 +83,29 @@ export default function AdminCertificatesPage() {
     load()
   }
 
+  const uploadFile = async (file: File | null) => {
+    if (!file || !editing) return
+    setUploading(true)
+    setError(null)
+    try {
+      const result = await api.upload<{ url: string }>('/api/uploads', file)
+      setEditing({ ...editing, image: result.url })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки файла')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   if (editing) {
+    const preview = resolveMediaUrl(editing.image)
     return (
       <Card>
         <CardHeader>
           <CardTitle>{editing.id ? 'Редактировать' : 'Добавить'} сертификат</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Название</Label>
@@ -123,14 +151,53 @@ export default function AdminCertificatesPage() {
                 onChange={(e) => setEditing({ ...editing, credentialUrl: e.target.value })}
               />
             </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Image URL</Label>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-stone-200 p-4">
+            <Label>Файл сертификата (картинка или PDF)</Label>
+            <Input
+              type="file"
+              accept="image/*,application/pdf,.pdf"
+              disabled={uploading}
+              onChange={(e) => {
+                void uploadFile(e.target.files?.[0] || null)
+                e.target.value = ''
+              }}
+            />
+            {uploading && <p className="text-xs text-stone-500">Загрузка...</p>}
+
+            <div className="space-y-2">
+              <Label>Или URL файла</Label>
               <Input
                 value={editing.image || ''}
                 onChange={(e) => setEditing({ ...editing, image: e.target.value })}
+                placeholder="/uploads/... или https://..."
               />
             </div>
+
+            {preview && (
+              <div className="mt-2">
+                {isPdf(editing.image) ? (
+                  <a
+                    href={preview}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium underline-offset-4 hover:underline"
+                  >
+                    Открыть PDF
+                  </a>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={preview}
+                    alt="Превью сертификата"
+                    className="max-h-48 rounded-lg border object-contain"
+                  />
+                )}
+              </div>
+            )}
           </div>
+
           <div className="space-y-2">
             <Label>Описание</Label>
             <Textarea
@@ -140,7 +207,9 @@ export default function AdminCertificatesPage() {
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={save}>Сохранить</Button>
+            <Button onClick={save} disabled={uploading}>
+              Сохранить
+            </Button>
             <Button variant="outline" onClick={() => setEditing(null)}>
               Отмена
             </Button>
@@ -184,6 +253,7 @@ export default function AdminCertificatesPage() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   {item.issueDate?.slice(0, 10)}
+                  {item.image ? ` · файл: ${isPdf(item.image) ? 'PDF' : 'изображение'}` : ''}
                 </p>
               </CardContent>
             </Card>
