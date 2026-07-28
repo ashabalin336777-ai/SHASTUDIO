@@ -71,7 +71,7 @@ services:
 
   # Nginx reverse proxy + SSL (Timeweb certs)
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:alpine
     container_name: shastudio-nginx
     restart: unless-stopped
     ports:
