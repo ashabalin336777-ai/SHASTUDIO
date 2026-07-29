@@ -1,19 +1,24 @@
 services:
   # PostgreSQL Database
+  # entrypoint restores role LOGIN before every start (self-heal for NOLOGIN).
   db:
     image: postgres:16-alpine
     container_name: shastudio-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: shastudio
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./deploy/db/entrypoint.sh:/ensure-db-entrypoint.sh:ro
+    entrypoint: ["sh", "/ensure-db-entrypoint.sh"]
+    command: ["postgres"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # Real login check — pg_isready alone stays green even when LOGIN is disabled
+      test: ["CMD-SHELL", "psql -U postgres -d shastudio -c 'SELECT 1' >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +31,8 @@ services:
     container_name: shastudio-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/shastudio?schema=public
+      # Always use Docker DNS host `db` (ignore local DATABASE_URL from .env — that is for host-side prisma/dev).
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/shastudio?schema=public
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
