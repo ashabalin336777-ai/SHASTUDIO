@@ -6,6 +6,10 @@ import { SectionPage } from '@/components/site/SectionPage'
 import { api, resolveMediaUrl } from '@/lib/api'
 import type { Certificate } from '@/types/portfolio'
 
+function isPdf(url?: string | null) {
+  return !!url && /\.pdf($|\?)/i.test(url)
+}
+
 export default function CertificatesPage() {
   const [items, setItems] = useState<Certificate[]>([])
 
@@ -28,18 +32,27 @@ export default function CertificatesPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
           {items.map((item) => {
             const fileUrl = resolveMediaUrl(item.image)
+            const pdf = isPdf(item.image)
             return (
               <div
                 key={item.id}
                 className="group relative overflow-hidden rounded-2xl border-2 border-foreground/20 bg-background transition-shadow hover:shadow-lg"
               >
                 {fileUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={fileUrl}
-                    alt={item.title}
-                    className="aspect-[3/4] w-full object-contain bg-stone-50 p-2 dark:bg-stone-900"
-                  />
+                  pdf ? (
+                    <iframe
+                      src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                      title={item.title}
+                      className="aspect-[3/4] w-full bg-stone-50 dark:bg-stone-900"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={fileUrl}
+                      alt={item.title}
+                      className="aspect-[3/4] w-full object-contain bg-stone-50 p-2 dark:bg-stone-900"
+                    />
+                  )
                 ) : (
                   <div className="flex aspect-[3/4] w-full items-center justify-center bg-stone-100 text-sm text-muted-foreground dark:bg-stone-800">
                     Нет превью
