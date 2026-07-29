@@ -1,0 +1,27 @@
+# Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/shastudio?schema=public"
+
+# Backend
+BACKEND_PORT=3001
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+BCRYPT_ROUNDS=10
+
+# VseLLM API
+VSELLM_API_KEY=sk-CvVpMbhlk4XHFApoWVKSUA
+VSELLM_BASE_URL="https://api.vsellm.ru/v1"
+VSELLM_MODEL=openai/gpt-4o-mini
+
+# Frontend
+NEXT_PUBLIC_API_URL=https://shastudio.ru
+NEXT_PUBLIC_APP_NAME="ShaStudio"
+NEXT_PUBLIC_VSELLM_API_KEY=sk-CvVpMbhlk4XHFApoWVKSUA
+
+# NextAuth (для frontend)
+NEXTAUTH_SECRET="your-nextauth-secret-key"
+NEXTAUTH_URL=https://shastudio.ru
+
+# Admin seed
+ADMIN_EMAIL=admin@shastudio.local
+ADMIN_PASSWORD=admin123
+ADMIN_NAME=Admin
+ADMIN_PASSWORD_FORCE=false
