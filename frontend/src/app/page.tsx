@@ -51,7 +51,7 @@ export default function Home() {
           <SectionPill>HELLO!</SectionPill>
           <h1 className="mt-5 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl lg:text-[3.35rem]">
             <SquiggleTitle accent="продуктовый">
-              {`Я ${name}, ${title}.`}
+              {`${name}, ${title}.`}
             </SquiggleTitle>
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
