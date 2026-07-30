@@ -96,12 +96,17 @@ export function SectionVisual({
         {imageUrl && (
           <div
             className={cn(
-              'absolute inset-0 transition-all duration-700 ease-out',
-              phase === 'photo' ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
+              'absolute inset-0 overflow-hidden transition-opacity duration-700 ease-out',
+              phase === 'photo' ? 'opacity-100' : 'opacity-0'
             )}
           >
+            {/* Height-fit: top/bottom of source stay visible; sides crop (zoom-out vs width-fit cover) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+            <img
+              src={imageUrl}
+              alt=""
+              className="absolute left-1/2 top-0 h-full w-auto max-w-none -translate-x-1/2"
+            />
           </div>
         )}
       </div>
