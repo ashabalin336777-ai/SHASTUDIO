@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: shastudio
       POSTGRES_APP_USER: ${POSTGRES_APP_USER:-shastudio}
-      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-postgres}
     ports:
       - "5433:5432"
     volumes:
@@ -22,16 +22,12 @@ services:
     entrypoint: ["sh", "/ensure-db-entrypoint.sh"]
     command: ["postgres"]
     healthcheck:
-      # App role (backend user). Compose $$ → container $
-      test:
-        [
-          "CMD-SHELL",
-          "PGPASSWORD=\"$$POSTGRES_APP_PASSWORD\" psql -h 127.0.0.1 -U \"$$POSTGRES_APP_USER\" -d shastudio -c 'SELECT 1' >/dev/null || exit 1",
-        ]
-      interval: 10s
+      # Local peer auth as OS user postgres — reliable even before app-role TCP works
+      test: ["CMD-SHELL", "psql -U postgres -d shastudio -c 'SELECT 1' >/dev/null || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 25s
+      retries: 12
+      start_period: 20s
 
   # Restarts unhealthy containers (esp. db) so entrypoint can re-apply LOGIN
   autoheal:
@@ -41,7 +37,7 @@ services:
     environment:
       AUTOHEAL_CONTAINER_LABEL: all
       AUTOHEAL_INTERVAL: 20
-      AUTOHEAL_START_PERIOD: 40
+      AUTOHEAL_START_PERIOD: 60
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -53,10 +49,10 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_APP_USER: ${POSTGRES_APP_USER:-shastudio}
-      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-postgres}
       POSTGRES_DB: shastudio
       DB_GUARD_INTERVAL_SEC: 45
-      DB_GUARD_FAILS_BEFORE_RESTART: 2
+      DB_GUARD_FAILS_BEFORE_RESTART: 3
       DB_CONTAINER: shastudio-db
     volumes:
       - ./deploy/db/guard.sh:/guard.sh:ro
@@ -75,7 +71,7 @@ services:
     restart: unless-stopped
     environment:
       # Dedicated app role — survives "ALTER ROLE postgres NOLOGIN" hardening
-      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-shastudio}:${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}@db:5432/shastudio?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-shastudio}:${POSTGRES_APP_PASSWORD:-postgres}@db:5432/shastudio?schema=public
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
