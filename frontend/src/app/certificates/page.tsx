@@ -10,6 +10,12 @@ function isPdf(url?: string | null) {
   return !!url && /\.pdf($|\?)/i.test(url)
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return null
+  const day = value.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null
+}
+
 export default function CertificatesPage() {
   const [items, setItems] = useState<Certificate[]>([])
 
@@ -29,33 +35,36 @@ export default function CertificatesPage() {
         description="Профессиональные сертификаты и подтверждения."
         stamp="VERIFIED"
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
+        <div className="space-y-5">
           {items.map((item) => {
             const fileUrl = resolveMediaUrl(item.image)
             const pdf = isPdf(item.image)
+            const issueDate = formatDate(item.issueDate)
+            const meta = [item.issuer?.trim(), issueDate].filter(Boolean)
+            const description = item.description?.trim()
+
             return (
               <article
                 key={item.id}
-                className="flex flex-col overflow-hidden rounded-2xl border-2 border-foreground/20 bg-background transition-shadow hover:shadow-lg"
+                className="grid gap-4 overflow-hidden rounded-2xl border-2 border-foreground/20 bg-background p-3 transition-shadow hover:shadow-lg sm:grid-cols-[minmax(9rem,14rem)_1fr] sm:gap-5 sm:p-4"
               >
-                <div className="relative aspect-[3/4] w-full overflow-hidden bg-stone-100 dark:bg-stone-900">
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-stone-100 dark:bg-stone-900">
                   {fileUrl ? (
                     pdf ? (
                       <>
-                        {/* PDF preview — never use <img> for PDFs */}
-                        <object
-                          data={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                          type="application/pdf"
+                        <iframe
+                          src={`${fileUrl}#toolbar=0&navpanes=0&view=FitH`}
                           title={item.title}
-                          className="pointer-events-none absolute inset-0 h-full w-full"
-                        >
-                          <iframe
-                            src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                            title={item.title}
-                            className="pointer-events-none absolute inset-0 h-full w-full border-0"
-                          />
-                        </object>
-                        <div className="pointer-events-none absolute right-2 top-2 rounded-md border border-foreground/20 bg-background/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                          className="absolute inset-0 h-full w-full border-0 bg-stone-100"
+                        />
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="absolute inset-0 z-10"
+                          aria-label={`Открыть PDF: ${item.title}`}
+                        />
+                        <div className="pointer-events-none absolute right-2 top-2 z-20 rounded-md border border-foreground/20 bg-background/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                           PDF
                         </div>
                       </>
@@ -74,11 +83,28 @@ export default function CertificatesPage() {
                   )}
                 </div>
 
-                <div className="border-t border-foreground/10 px-3 py-2.5">
-                  <h2 className="text-sm font-bold leading-tight text-foreground">{item.title}</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {[item.issuer, item.issueDate?.slice(0, 10)].filter(Boolean).join(' · ')}
-                  </p>
+                <div className="flex min-w-0 flex-col justify-center py-1">
+                  <h2 className="text-lg font-bold leading-snug text-foreground sm:text-xl">
+                    {item.title}
+                  </h2>
+                  {meta.length > 0 && (
+                    <p className="mt-1 text-sm text-muted-foreground">{meta.join(' · ')}</p>
+                  )}
+                  {description && (
+                    <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-foreground/85 sm:text-[0.95rem]">
+                      {description}
+                    </p>
+                  )}
+                  {item.credentialUrl?.trim() && (
+                    <a
+                      href={item.credentialUrl.trim()}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 w-fit text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                      Проверить credential
+                    </a>
+                  )}
                 </div>
               </article>
             )

@@ -30,11 +30,33 @@ fs.mkdirSync(uploadDir, { recursive: true })
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    // PDFs are embedded in the Next.js app (often another origin in local/dev).
+    frameguard: false,
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        'frame-ancestors': ["'self'", 'http://localhost:3000', 'https://shastudio.ru'],
+        // Allow <object>/<embed> for PDF previews when used.
+        'object-src': ["'self'", 'blob:', 'data:'],
+      },
+    },
   })
 )
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
-app.use('/uploads', express.static(uploadDir))
+// Uploads must be frameable for certificate PDF previews (admin + public site).
+app.use(
+  '/uploads',
+  (_req, res, next) => {
+    res.removeHeader('X-Frame-Options')
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'none';frame-ancestors *; object-src 'self';sandbox"
+    )
+    next()
+  },
+  express.static(uploadDir)
+)
 
 app.get('/health', async (_req, res) => {
   const timestamp = new Date().toISOString()

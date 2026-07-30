@@ -111,8 +111,8 @@ export type Certificate = {
   title: string
   issuer: string
   issuerLogo?: string
-  issueDate: string
-  expiryDate?: string
+  issueDate?: string | null
+  expiryDate?: string | null
   credentialId?: string
   credentialUrl?: string
   image?: string

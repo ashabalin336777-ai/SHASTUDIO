@@ -32,10 +32,9 @@ export default createSoftDeleteCrudRouter({
       stripMetaFields(body as Record<string, unknown>),
       fields
     ) as Record<string, unknown>
-    if ('issueDate' in data && data.issueDate != null) {
-      data.issueDate = toDateOrNull(data.issueDate) ?? new Date()
-    }
+    if ('issueDate' in data) data.issueDate = toDateOrNull(data.issueDate)
     if ('expiryDate' in data) data.expiryDate = toDateOrNull(data.expiryDate)
+
     return data
   },
 })
