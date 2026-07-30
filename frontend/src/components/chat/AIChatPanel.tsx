@@ -39,12 +39,16 @@ export function AIChatPanel({ className }: Props) {
           content: data.answer || 'Извините, не удалось получить ответ.',
         },
       ])
-    } catch {
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Извините, произошла ошибка. Попробуйте позже.'
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Извините, произошла ошибка. Попробуйте позже.',
+          content: message,
         },
       ])
     } finally {
