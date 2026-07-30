@@ -1,8 +1,6 @@
 services:
-  # PostgreSQL Database
-  # App connects as role "shastudio" (not "postgres") so host hardening of
-  # postgres NOLOGIN does not take the site down. Entrypoint restores LOGIN
-  # on every db start; db-guard restarts db if app login fails.
+  # PostgreSQL — entrypoint restores role postgres LOGIN before every start
+  # (su-exec postgres; postgres --single refuses root).
   db:
     image: postgres:16-alpine
     container_name: shastudio-db
@@ -11,8 +9,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: shastudio
-      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-shastudio}
-      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-postgres}
     ports:
       - "5433:5432"
     volumes:
@@ -22,14 +18,13 @@ services:
     entrypoint: ["sh", "/ensure-db-entrypoint.sh"]
     command: ["postgres"]
     healthcheck:
-      # Local peer auth as OS user postgres — reliable even before app-role TCP works
       test: ["CMD-SHELL", "psql -U postgres -d shastudio -c 'SELECT 1' >/dev/null || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 20s
+      retries: 15
+      start_period: 30s
 
-  # Restarts unhealthy containers (esp. db) so entrypoint can re-apply LOGIN
+  # Restart unhealthy containers (db NOLOGIN → unhealthy → restart → entrypoint fixes LOGIN)
   autoheal:
     image: willfarrell/autoheal:1.2.0
     container_name: shastudio-autoheal
@@ -41,28 +36,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # If app role cannot login, restart only db (entrypoint restores LOGIN)
-  db-guard:
-    image: docker:27-cli
-    container_name: shastudio-db-guard
-    restart: unless-stopped
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-shastudio}
-      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-postgres}
-      POSTGRES_DB: shastudio
-      DB_GUARD_INTERVAL_SEC: 45
-      DB_GUARD_FAILS_BEFORE_RESTART: 3
-      DB_CONTAINER: shastudio-db
-    volumes:
-      - ./deploy/db/guard.sh:/guard.sh:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    entrypoint: ["sh", "/guard.sh"]
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # Backend API
   backend:
     build:
       context: ./backend
@@ -70,8 +43,7 @@ services:
     container_name: shastudio-backend
     restart: unless-stopped
     environment:
-      # Dedicated app role — survives "ALTER ROLE postgres NOLOGIN" hardening
-      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-shastudio}:${POSTGRES_APP_PASSWORD:-postgres}@db:5432/shastudio?schema=public
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/shastudio?schema=public
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
@@ -82,7 +54,6 @@ services:
       VSELLM_API_KEY: ${VSELLM_API_KEY}
       VSELLM_BASE_URL: ${VSELLM_BASE_URL}
       VSELLM_MODEL: ${VSELLM_MODEL}
-    # На проде достаточно доступа из Docker-сети; порт на хост — для отладки
     ports:
       - "3001:3001"
     depends_on:
@@ -94,9 +65,6 @@ services:
       - backend_uploads:/app/uploads
     command: sh -c "npx prisma migrate deploy || npx prisma db push; npm run dev"
 
-  # Frontend Next.js (внутри контейнера порт 3000)
-  # Note: no source bind-mount on Windows — Next.js exits under Docker Desktop bind mounts.
-  # Rebuild image after frontend changes, or run `npm run dev` locally on port 3010.
   frontend:
     build:
       context: ./frontend
@@ -104,7 +72,6 @@ services:
     container_name: shastudio-frontend
     restart: unless-stopped
     environment:
-      # Браузер ходит на тот же домен; Nginx проксирует /api → backend
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://shastudio.ru}
       NEXT_PUBLIC_VSELLM_API_KEY: ${NEXT_PUBLIC_VSELLM_API_KEY}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -114,7 +81,6 @@ services:
     depends_on:
       - backend
 
-  # Nginx reverse proxy + SSL (Timeweb certs)
   nginx:
     image: nginx:alpine
     container_name: shastudio-nginx

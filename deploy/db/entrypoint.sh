@@ -1,6 +1,5 @@
 #!/bin/sh
-# Runs before the official Postgres entrypoint.
-# Must run ensure-roles as user "postgres" — postgres --single refuses root.
+# Before official entrypoint: restore postgres LOGIN (as OS user postgres).
 
 set -eu
 
@@ -15,7 +14,7 @@ run_ensure() {
     elif command -v gosu >/dev/null 2>&1; then
       gosu postgres sh /ensure-roles.sh
     else
-      echo "[db-entrypoint] ERROR: su-exec/gosu missing; cannot ensure roles"
+      echo "[db-entrypoint] ERROR: su-exec/gosu missing"
       return 1
     fi
   else
