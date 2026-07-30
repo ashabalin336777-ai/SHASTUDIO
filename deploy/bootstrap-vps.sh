@@ -47,7 +47,7 @@ if [ ! -f deploy/certs/fullchain.pem ] || [ ! -f deploy/certs/privkey.pem ]; the
 fi
 
 echo "==> Build & up (production)"
-chmod +x deploy/db/entrypoint.sh deploy/db/repair-postgres-login.sh 2>/dev/null || true
+chmod +x deploy/db/*.sh 2>/dev/null || true
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 echo "==> Status"
@@ -55,8 +55,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
 echo ""
 echo "Готово. Проверка:"
-echo "  curl -k https://127.0.0.1/health   # должен быть status=ok и db=up"
+echo "  curl -k https://127.0.0.1/health   # status=ok и db=up"
 echo "  curl -k https://127.0.0.1/api/profile"
 echo "  https://shastudio.ru"
 echo ""
-echo "Если снова NOLOGIN: bash deploy/db/repair-postgres-login.sh"
+echo "DB: backend uses role shastudio (not postgres)."
+echo "If broken offline: bash deploy/db/repair-postgres-login.sh"
+echo "Also check: crontab -l  # for ALTER ROLE postgres NOLOGIN jobs"

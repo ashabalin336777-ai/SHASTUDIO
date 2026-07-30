@@ -1,6 +1,8 @@
 services:
   # PostgreSQL Database
-  # entrypoint restores role LOGIN before every start (self-heal for NOLOGIN).
+  # App connects as role "shastudio" (not "postgres") so host hardening of
+  # postgres NOLOGIN does not take the site down. Entrypoint restores LOGIN
+  # on every db start; db-guard restarts db if app login fails.
   db:
     image: postgres:16-alpine
     container_name: shastudio-db
@@ -9,19 +11,60 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: shastudio
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-shastudio}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./deploy/db/entrypoint.sh:/ensure-db-entrypoint.sh:ro
+      - ./deploy/db/ensure-roles.sh:/ensure-roles.sh:ro
     entrypoint: ["sh", "/ensure-db-entrypoint.sh"]
     command: ["postgres"]
     healthcheck:
-      # Real login check — pg_isready alone stays green even when LOGIN is disabled
-      test: ["CMD-SHELL", "psql -U postgres -d shastudio -c 'SELECT 1' >/dev/null || exit 1"]
+      # App role (backend user). Compose $$ → container $
+      test:
+        [
+          "CMD-SHELL",
+          "PGPASSWORD=\"$$POSTGRES_APP_PASSWORD\" psql -h 127.0.0.1 -U \"$$POSTGRES_APP_USER\" -d shastudio -c 'SELECT 1' >/dev/null || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 25s
+
+  # Restarts unhealthy containers (esp. db) so entrypoint can re-apply LOGIN
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    container_name: shastudio-autoheal
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: all
+      AUTOHEAL_INTERVAL: 20
+      AUTOHEAL_START_PERIOD: 40
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # If app role cannot login, restart only db (entrypoint restores LOGIN)
+  db-guard:
+    image: docker:27-cli
+    container_name: shastudio-db-guard
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-shastudio}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}
+      POSTGRES_DB: shastudio
+      DB_GUARD_INTERVAL_SEC: 45
+      DB_GUARD_FAILS_BEFORE_RESTART: 2
+      DB_CONTAINER: shastudio-db
+    volumes:
+      - ./deploy/db/guard.sh:/guard.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["sh", "/guard.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
 
   # Backend API
   backend:
@@ -31,8 +74,8 @@ services:
     container_name: shastudio-backend
     restart: unless-stopped
     environment:
-      # Always use Docker DNS host `db` (ignore local DATABASE_URL from .env — that is for host-side prisma/dev).
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/shastudio?schema=public
+      # Dedicated app role — survives "ALTER ROLE postgres NOLOGIN" hardening
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-shastudio}:${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}@db:5432/shastudio?schema=public
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}

@@ -1,42 +1,60 @@
-# Postgres role LOGIN self-heal
+# Postgres LOGIN outages
 
-## Why `role "postgres" is not permitted to log in` happens
+## Root cause (why it came back every ~30 minutes)
 
-PostgreSQL stores a flag `rolcanlogin` per role. When it is false, every
-connection fails with:
+Something on the VPS (cron / security hardening / panel script) periodically runs
+the equivalent of:
 
-```text
-FATAL: role "postgres" is not permitted to log in
+```sql
+ALTER ROLE postgres NOLOGIN;
 ```
 
-The app then returns `500 Internal server error` / Prisma `P1000`, while
-`/health` used to stay green because it did not touch the database.
+That is **not** done by ShaStudio app code. Symptoms:
 
-This project does **not** set `NOLOGIN` in application code. It usually comes
-from:
+- `/health` → `{"status":"degraded","db":"down"}`
+- API / admin → `500` / Prisma `P1000`
+- `psql -U postgres` → `role "postgres" is not permitted to log in`
 
-1. Emergency `postgres --single` repairs while the DB container was still running
-   (catalog / data-dir races).
-2. Manual "hardening" SQL (`ALTER ROLE postgres NOLOGIN`) without updating
-   compose credentials.
-3. Incomplete recovery after volume corruption / interrupted single-user sessions.
+`pg_isready` stays green. Fixing only at container start is not enough if
+NOLOGIN is applied while Postgres is still running.
 
-`pg_isready` alone does **not** detect this (it can stay healthy without LOGIN).
+## Permanent mitigation in this repo
 
-## What we do now
+1. **App role `shastudio`** — backend `DATABASE_URL` uses this role, not `postgres`.
+   Hardening that only disables `postgres` no longer takes the site down.
+2. **`deploy/db/ensure-roles.sh`** — on every db container start (single-user),
+   restores `LOGIN` for both `postgres` and `shastudio`.
+3. **`autoheal`** — restarts unhealthy containers; db entrypoint re-applies LOGIN.
+4. **`db-guard`** — every ~45s checks app-role login; after 2 failures restarts
+   only `shastudio-db`.
 
-1. `deploy/db/entrypoint.sh` — before every Postgres start, runs single-user
-   `ALTER ROLE postgres WITH LOGIN SUPERUSER PASSWORD ...` when the data dir
-   already exists. Self-heals on `docker compose up` / container restart.
-2. Compose healthcheck uses `psql ... SELECT 1` (real login).
-3. Backend `/health` returns `503` with `"db":"down"` if Prisma cannot query.
-4. `deploy/db/repair-postgres-login.sh` — offline emergency repair if the
-   entrypoint cannot run.
+## Deploy / repair on VPS
 
-## Ops rules
+```bash
+cd /opt/SHASTUDIO
+git pull origin main
+# one-time if currently broken:
+bash deploy/db/repair-postgres-login.sh
+# or if already healthy, just recreate stack:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
 
-- Never run `ALTER ROLE postgres NOLOGIN` on this stack.
-- Never run `postgres --single` while `shastudio-db` is still up.
-- Keep `POSTGRES_PASSWORD` in `.env` in sync with what you expect; compose builds
-  backend `DATABASE_URL` as `postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/shastudio`.
-- Local `DATABASE_URL` with `localhost:5433` is only for host-side Prisma/dev.
+Confirm:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+curl -sS https://shastudio.ru/health   # expect db=up
+crontab -l                             # look for scripts that touch postgres
+```
+
+## Find the host job that sets NOLOGIN
+
+```bash
+crontab -l
+ls -la /etc/cron.* /etc/cron.d 2>/dev/null
+grep -RniE 'NOLOGIN|ALTER ROLE|postgres' /etc/cron* /usr/local/bin /opt 2>/dev/null | head
+```
+
+Disable or edit that job so it does not run `ALTER ROLE postgres NOLOGIN`
+against this volume — otherwise you will still see useless restarts of `db`
+even though the app role keeps the site up.
