@@ -1,41 +1,4 @@
 services:
-  # PostgreSQL — entrypoint restores role postgres LOGIN before every start
-  # (su-exec postgres; postgres --single refuses root).
-  db:
-    image: postgres:16-alpine
-    container_name: shastudio-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: shastudio
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./deploy/db/entrypoint.sh:/ensure-db-entrypoint.sh:ro
-      - ./deploy/db/ensure-roles.sh:/ensure-roles.sh:ro
-    entrypoint: ["sh", "/ensure-db-entrypoint.sh"]
-    command: ["postgres"]
-    healthcheck:
-      test: ["CMD-SHELL", "psql -U postgres -d shastudio -c 'SELECT 1' >/dev/null || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 15
-      start_period: 30s
-
-  # Restart unhealthy containers (db NOLOGIN → unhealthy → restart → entrypoint fixes LOGIN)
-  autoheal:
-    image: willfarrell/autoheal:1.2.0
-    container_name: shastudio-autoheal
-    restart: unless-stopped
-    environment:
-      AUTOHEAL_CONTAINER_LABEL: all
-      AUTOHEAL_INTERVAL: 20
-      AUTOHEAL_START_PERIOD: 60
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-
   backend:
     build:
       context: ./backend
@@ -43,7 +6,7 @@ services:
     container_name: shastudio-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/shastudio?schema=public
+      DATABASE_URL: file:/app/data/shastudio.db
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
@@ -56,13 +19,11 @@ services:
       VSELLM_MODEL: ${VSELLM_MODEL}
     ports:
       - "3001:3001"
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
       - backend_uploads:/app/uploads
+      - backend_data:/app/data
     command: sh -c "npx prisma migrate deploy || npx prisma db push; npm run dev"
 
   frontend:
@@ -98,7 +59,7 @@ services:
       - backend
 
 volumes:
-  postgres_data:
   backend_node_modules:
   backend_uploads:
+  backend_data:
   nginx_certbot_www:

@@ -1,34 +1,41 @@
-# Postgres LOGIN outages
+# SQLite (no Postgres)
 
-## What goes wrong
+ShaStudio uses a local SQLite file inside the backend container:
 
-Something on the VPS periodically sets `ALTER ROLE postgres NOLOGIN`.
-Then API/admin return 500 and `/health` shows `"db":"down"`.
+- path: `/app/data/shastudio.db`
+- volume: `backend_data`
+- env: `DATABASE_URL=file:/app/data/shastudio.db`
 
-## What this stack does
+## Why
 
-1. **`deploy/db/entrypoint.sh`** — before Postgres starts, runs
-   `ensure-roles.sh` as OS user `postgres` via `su-exec`
-   (`postgres --single` refuses root).
-2. **`ensure-roles.sh`** — `ALTER ROLE postgres WITH LOGIN SUPERUSER PASSWORD ...`
-3. **healthcheck** — real `psql -U postgres ... SELECT 1` (not only `pg_isready`)
-4. **autoheal** — restarts unhealthy `db`; entrypoint restores LOGIN again
+Postgres on this VPS kept losing `LOGIN` on role `postgres`. For a small
+portfolio (text + files in `/uploads`) SQLite is enough and removes that failure mode.
 
-Backend uses role **`postgres`** (simple and proven for this project).
-
-## Ops
+## Deploy
 
 ```bash
 cd /opt/SHASTUDIO
 git pull origin main
-bash deploy/db/repair-postgres-login.sh   # if currently broken
-# or:
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build backend
+curl -sS https://shastudio.ru/health
 ```
 
-Find host jobs that set NOLOGIN:
+Uploads volume `backend_uploads` is unchanged — certificate PDFs/images stay on disk.
+Database rows (profile, certificate metadata, etc.) start empty unless you import JSON.
+
+Admin user is re-seeded from `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`) on backend start.
+
+## Backup
 
 ```bash
-crontab -l
-grep -RniE 'NOLOGIN|ALTER ROLE postgres' /etc/cron* /usr/local/bin /opt 2>/dev/null | head
+chmod +x deploy/sqlite-backup.sh
+./deploy/sqlite-backup.sh
+```
+
+## Old Postgres volume
+
+After SQLite works, you may remove the unused volume (destroys PG data):
+
+```bash
+docker volume rm shastudio_postgres_data
 ```

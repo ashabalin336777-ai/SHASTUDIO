@@ -1,6 +1,6 @@
 # ShaStudio
 
-Динамическое портфолио на Docker: сайт (Next.js), API (Express + Prisma + PostgreSQL), AI-чат (VseLLM) и админка для контента. Публикация на `shastudio.ru` через Nginx с SSL.
+Динамическое портфолио на Docker: сайт (Next.js), API (Express + Prisma + SQLite), AI-чат (VseLLM) и админка для контента. Публикация на `shastudio.ru` через Nginx с SSL.
 
 ## Как запустить
 
@@ -30,8 +30,8 @@ docker compose up -d --build
 ### Локально без полного Docker
 
 ```bash
-# Backend (БД на localhost:5433)
-cd backend && npm install && npx prisma migrate dev && npm run dev
+# Backend (SQLite: file:./data/shastudio.db)
+cd backend && npm install && npx prisma migrate deploy && npm run dev
 
 # Frontend
 cd frontend && npm install && npm run dev -- -p 3010
