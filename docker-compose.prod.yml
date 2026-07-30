@@ -1,20 +1,20 @@
 # Production overlay: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# !override — иначе volumes из docker-compose.yml склеиваются (bind-mount + старый node_modules).
 
 services:
-  db:
-    ports: []
-
   backend:
     build:
       dockerfile: Dockerfile.prod
-    ports: []
+    ports: !override []
     command: ["sh", "-c", "npx prisma migrate deploy || npx prisma db push; exec npx tsx -r dotenv/config src/index.ts"]
-    volumes:
+    volumes: !override
       - backend_uploads:/app/uploads
+      - backend_data:/app/data
 
   frontend:
     build:
       dockerfile: Dockerfile.prod
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://shastudio.ru}
-    ports: []
+    ports: !override []
+    volumes: !override []

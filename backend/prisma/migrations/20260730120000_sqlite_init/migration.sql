@@ -1,19 +1,17 @@
 -- CreateTable
 CREATE TABLE "users" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "name" TEXT,
     "role" TEXT NOT NULL DEFAULT 'admin',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "profile" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "fullName" TEXT NOT NULL,
     "title" TEXT,
     "bio" TEXT,
@@ -22,20 +20,20 @@ CREATE TABLE "profile" (
     "email" TEXT,
     "phone" TEXT,
     "website" TEXT,
+    "telegram" TEXT,
+    "max" TEXT,
     "github" TEXT,
     "linkedin" TEXT,
     "mbtiType" TEXT,
-    "personalTraits" TEXT[],
-    "skills" TEXT[],
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "profile_pkey" PRIMARY KEY ("id")
+    "personalTraits" JSON NOT NULL DEFAULT '[]',
+    "skills" JSON NOT NULL DEFAULT '[]',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "experiences" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "company" TEXT NOT NULL,
     "companyLogo" TEXT,
     "companyWebsite" TEXT,
@@ -50,20 +48,18 @@ CREATE TABLE "experiences" (
     "position" TEXT NOT NULL,
     "department" TEXT,
     "description" TEXT,
-    "responsibilities" TEXT[],
-    "achievements" TEXT[],
-    "technologies" TEXT[],
+    "responsibilities" JSON NOT NULL DEFAULT '[]',
+    "achievements" JSON NOT NULL DEFAULT '[]',
+    "technologies" JSON NOT NULL DEFAULT '[]',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "experiences_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "education" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "institution" TEXT NOT NULL,
     "logo" TEXT,
     "website" TEXT,
@@ -80,104 +76,101 @@ CREATE TABLE "education" (
     "certificateUrl" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "education_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "courses" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
     "platform" TEXT,
-    "startDate" TIMESTAMP(3),
-    "endDate" TIMESTAMP(3),
+    "startDate" DATETIME,
+    "endDate" DATETIME,
     "certificate" TEXT,
     "certificateUrl" TEXT,
     "description" TEXT,
-    "skills" TEXT[],
+    "skills" JSON NOT NULL DEFAULT '[]',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "courses_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "projects" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "description" TEXT,
     "content" TEXT,
     "image" TEXT,
-    "images" TEXT[],
+    "images" JSON NOT NULL DEFAULT '[]',
     "category" TEXT,
-    "tags" TEXT[],
+    "tags" JSON NOT NULL DEFAULT '[]',
     "link" TEXT,
     "demo" TEXT,
     "github" TEXT,
-    "technologies" TEXT[],
+    "technologies" JSON NOT NULL DEFAULT '[]',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "featured" BOOLEAN NOT NULL DEFAULT false,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "projects_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "blog_posts" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "excerpt" TEXT,
     "content" TEXT NOT NULL,
     "coverImage" TEXT,
-    "tags" TEXT[],
+    "tags" JSON NOT NULL DEFAULT '[]',
     "isPublished" BOOLEAN NOT NULL DEFAULT false,
-    "publishedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "blog_posts_pkey" PRIMARY KEY ("id")
+    "publishedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "certificates" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "issuer" TEXT NOT NULL,
     "issuerLogo" TEXT,
-    "issueDate" TIMESTAMP(3) NOT NULL,
-    "expiryDate" TIMESTAMP(3),
+    "issueDate" DATETIME NOT NULL,
+    "expiryDate" DATETIME,
     "credentialId" TEXT,
     "credentialUrl" TEXT,
     "image" TEXT,
     "description" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "certificates_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "site_context" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "section" TEXT NOT NULL,
     "content" TEXT NOT NULL,
-    "keywords" TEXT[],
+    "keywords" JSON NOT NULL DEFAULT '[]',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
 
-    CONSTRAINT "site_context_pkey" PRIMARY KEY ("id")
+-- CreateTable
+CREATE TABLE "section_media" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "section" TEXT NOT NULL,
+    "imageUrl" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateIndex
@@ -221,3 +214,6 @@ CREATE INDEX "site_context_section_idx" ON "site_context"("section");
 
 -- CreateIndex
 CREATE INDEX "site_context_isActive_idx" ON "site_context"("isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "section_media_section_key" ON "section_media"("section");

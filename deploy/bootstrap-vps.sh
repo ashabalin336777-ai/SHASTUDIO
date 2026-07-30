@@ -46,13 +46,18 @@ if [ ! -f deploy/certs/fullchain.pem ] || [ ! -f deploy/certs/privkey.pem ]; the
   exit 1
 fi
 
-echo "==> Build & up (production)"
+echo "==> Build & up (production, SQLite)"
+chmod +x deploy/*.sh deploy/db/*.sh 2>/dev/null || true
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 echo "==> Status"
-docker compose ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
 echo ""
 echo "Готово. Проверка:"
-echo "  curl -kI https://127.0.0.1/health  # через nginx внутри хоста"
+echo "  curl -k https://127.0.0.1/health   # status=ok и db=up"
+echo "  curl -k https://127.0.0.1/api/profile"
 echo "  https://shastudio.ru"
+echo ""
+echo "DB: SQLite file in volume backend_data (/app/data/shastudio.db)"
+echo "Backup: bash deploy/sqlite-backup.sh"

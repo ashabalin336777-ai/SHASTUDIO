@@ -37,6 +37,11 @@ tmp/
 # Backend uploads (user media)
 backend/uploads/
 
+# SQLite database files
+backend/data/*.db
+backend/data/*.db-*
+!backend/data/.gitkeep
+
 # SSL private material (Timeweb)
 deploy/certs/*.pem
 deploy/certs/*.key

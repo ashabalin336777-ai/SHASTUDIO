@@ -1,24 +1,4 @@
 services:
-  # PostgreSQL Database
-  db:
-    image: postgres:16-alpine
-    container_name: shastudio-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: shastudio
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Backend API
   backend:
     build:
       context: ./backend
@@ -26,7 +6,7 @@ services:
     container_name: shastudio-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/shastudio?schema=public
+      DATABASE_URL: file:/app/data/shastudio.db
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
@@ -37,21 +17,15 @@ services:
       VSELLM_API_KEY: ${VSELLM_API_KEY}
       VSELLM_BASE_URL: ${VSELLM_BASE_URL}
       VSELLM_MODEL: ${VSELLM_MODEL}
-    # На проде достаточно доступа из Docker-сети; порт на хост — для отладки
     ports:
       - "3001:3001"
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
       - backend_uploads:/app/uploads
+      - backend_data:/app/data
     command: sh -c "npx prisma migrate deploy || npx prisma db push; npm run dev"
 
-  # Frontend Next.js (внутри контейнера порт 3000)
-  # Note: no source bind-mount on Windows — Next.js exits under Docker Desktop bind mounts.
-  # Rebuild image after frontend changes, or run `npm run dev` locally on port 3010.
   frontend:
     build:
       context: ./frontend
@@ -59,7 +33,6 @@ services:
     container_name: shastudio-frontend
     restart: unless-stopped
     environment:
-      # Браузер ходит на тот же домен; Nginx проксирует /api → backend
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://shastudio.ru}
       NEXT_PUBLIC_VSELLM_API_KEY: ${NEXT_PUBLIC_VSELLM_API_KEY}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -69,7 +42,6 @@ services:
     depends_on:
       - backend
 
-  # Nginx reverse proxy + SSL (Timeweb certs)
   nginx:
     image: nginx:alpine
     container_name: shastudio-nginx
@@ -87,7 +59,7 @@ services:
       - backend
 
 volumes:
-  postgres_data:
   backend_node_modules:
   backend_uploads:
+  backend_data:
   nginx_certbot_www:
