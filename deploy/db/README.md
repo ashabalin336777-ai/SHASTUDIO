@@ -1,41 +1,17 @@
-# SQLite (no Postgres)
+# Database notes (SQLite)
 
-ShaStudio uses a local SQLite file inside the backend container:
+ShaStudio uses **SQLite**, not PostgreSQL.
 
-- path: `/app/data/shastudio.db`
-- volume: `backend_data`
-- env: `DATABASE_URL=file:/app/data/shastudio.db`
+- File in container: `/app/data/shastudio.db`
+- Docker volume: `backend_data`
+- Uploads (images/PDF): volume `backend_uploads` → `/app/uploads`
 
-## Why
-
-Postgres on this VPS kept losing `LOGIN` on role `postgres`. For a small
-portfolio (text + files in `/uploads`) SQLite is enough and removes that failure mode.
-
-## Deploy
+Full ops docs (deploy, backup, troubleshooting): see root [README.md](../../README.md).
 
 ```bash
-cd /opt/SHASTUDIO
-git pull origin main
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build backend
+# backup
+bash deploy/sqlite-backup.sh
+
+# health
 curl -sS https://shastudio.ru/health
-```
-
-Uploads volume `backend_uploads` is unchanged — certificate PDFs/images stay on disk.
-Database rows (profile, certificate metadata, etc.) start empty unless you import JSON.
-
-Admin user is re-seeded from `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`) on backend start.
-
-## Backup
-
-```bash
-chmod +x deploy/sqlite-backup.sh
-./deploy/sqlite-backup.sh
-```
-
-## Old Postgres volume
-
-After SQLite works, you may remove the unused volume (destroys PG data):
-
-```bash
-docker volume rm shastudio_postgres_data
 ```
