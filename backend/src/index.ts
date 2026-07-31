@@ -44,18 +44,16 @@ app.use(
 )
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
-// Uploads must be frameable for certificate PDF previews (admin + public site).
+// Uploads must be frameable for certificate PDF previews.
+// Do NOT set default-src/sandbox here — that breaks browser PDF viewers in iframes.
 app.use(
   '/uploads',
-  (_req, res, next) => {
-    res.removeHeader('X-Frame-Options')
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'none';frame-ancestors *; object-src 'self';sandbox"
-    )
-    next()
-  },
-  express.static(uploadDir)
+  express.static(uploadDir, {
+    setHeaders(res) {
+      res.removeHeader('X-Frame-Options')
+      res.setHeader('Content-Security-Policy', 'frame-ancestors *')
+    },
+  })
 )
 
 app.get('/health', async (_req, res) => {

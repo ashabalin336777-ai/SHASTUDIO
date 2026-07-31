@@ -184,10 +184,16 @@ export default function AdminCertificatesPage() {
                 {isPdf(editing.image) ? (
                   <>
                     <div className="relative aspect-[3/4] max-h-72 w-full max-w-xs overflow-hidden rounded-lg border bg-stone-100">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
+                          PDF
+                        </span>
+                        <span className="text-xs text-stone-500">Превью / открыть файл</span>
+                      </div>
                       <iframe
                         src={`${preview}#toolbar=0&navpanes=0&view=FitH`}
                         title="Превью PDF"
-                        className="absolute inset-0 h-full w-full border-0"
+                        className="absolute inset-0 z-[1] h-full w-full border-0 bg-transparent"
                       />
                     </div>
                     <a
