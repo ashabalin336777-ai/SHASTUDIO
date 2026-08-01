@@ -1,7 +1,9 @@
 # ShaStudio
 
 Динамическое портфолио на Docker: **Next.js** (сайт) + **Express / Prisma / SQLite** (API) + **Nginx SSL** + AI-чат (VseLLM).  
-Прод: [https://shastudio.ru](https://shastudio.ru)
+Прод: [https://shastudio.ru](https://shastudio.ru) · репозиторий: [ashabalin336777-ai/SHASTUDIO](https://github.com/ashabalin336777-ai/SHASTUDIO)
+
+**Статус:** рабочий прод на `main`. Разделы сайта, админка, сертификаты (PDF/описание), AI-чат и деплой на VPS проверены.
 
 ## Стек
 
@@ -13,7 +15,7 @@
 | БД | файл SQLite в томе `backend_data` → `/app/data/shastudio.db` |
 | Прокси | Nginx (HTTP→HTTPS, `/` → frontend, `/api` и `/uploads` → backend) |
 
-PostgreSQL **больше не используется** (на VPS были повторяющиеся сбои `role postgres is not permitted to log in`). Для портфолио достаточно SQLite.
+PostgreSQL **не используется**. Для портфолио достаточно SQLite.
 
 ---
 
@@ -55,15 +57,15 @@ npm run dev -- -p 3010
 
 ## Продакшен на VPS (Timeweb)
 
-Каталог на сервере: `/opt/SHASTUDIO`.
+Каталог на сервере: `/opt/SHASTUDIO`. Прод всегда с ветки **`main`**.
 
-### Первый / обычный деплой
+### Обычный деплой
 
 ```bash
 cd /opt/SHASTUDIO
 git fetch origin
 git checkout main
-git reset --hard origin/main   # если на сервере были локальные правки
+git reset --hard origin/main
 
 # SSL: deploy/certs/fullchain.pem + privkey.pem
 # (из certificate.crt + private.key → ./deploy/certs/combine-timeweb.sh)
@@ -79,7 +81,7 @@ curl -sS https://shastudio.ru/health
 # ожидаемо: {"status":"ok","db":"up",...}
 ```
 
-Контейнеры на проде: **backend**, **frontend**, **nginx** (без Postgres).
+Контейнеры: **backend**, **frontend**, **nginx** (без Postgres).
 
 ### Важно: volumes на проде
 
@@ -105,7 +107,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 - `NEXTAUTH_URL=https://shastudio.ru`
 - `VSELLM_API_KEY` (для AI)
 
-`DATABASE_URL` в контейнере задаётся compose: `file:/app/data/shastudio.db` (локальный `.env` с `localhost` Postgres не нужен).
+`DATABASE_URL` в контейнере задаётся compose: `file:/app/data/shastudio.db`.
 
 ### SSL (Timeweb)
 
@@ -120,15 +122,16 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 | Данные | Где |
 |--------|-----|
-| Текст, профиль, метаданные сертификатов, разделы | SQLite → том **`backend_data`** |
+| Текст, профиль, метаданные, разделы | SQLite → том **`backend_data`** |
 | Загруженные PDF/картинки | том **`backend_uploads`** → `/uploads/...` |
-| Старый Postgres (если остался) | том `shastudio_postgres_data` — можно удалить после перехода на SQLite |
 
-После миграции на SQLite **записи в БД** нужно заново внести через админку (или импорт JSON).  
-**Файлы** в `backend_uploads` обычно сохраняются, если том не удаляли.
+Админка: [https://shastudio.ru/admin](https://shastudio.ru/admin)
 
-Админка: [https://shastudio.ru/admin](https://shastudio.ru/admin)  
-Публичные сертификаты: превью сеткой на `/certificates` (PDF — iframe, картинки — img).
+### Сертификаты
+
+- Публично: `/certificates` — слева превью (PDF iframe / картинка), справа название и **описание**; пустые поля (дата, издатель и т.п.) не показываются.
+- Админка: загрузка PDF/изображений, редактирование описания, опциональная дата выдачи.
+- PDF во iframe: у `/uploads` CSP только `frame-ancestors *` (без `default-src`/`sandbox` — иначе браузер не рисует PDF). Настройки в `backend/src/index.ts` и `deploy/nginx/conf.d/shastudio.conf`.
 
 ---
 
@@ -149,13 +152,15 @@ Cron (пример, ежедневно в 03:30):
 
 ---
 
-## Git: ветки по разделам сайта
+## Git
 
-Для независимой разработки:
+Основная ветка: **`main`** (то, что на проде).
+
+Исторические feature-ветки по разделам (для точечных правок при необходимости):
 
 | Ветка | Раздел |
 |-------|--------|
-| `feature/overview` | Обзор |
+| `feature/overview` | Обзор / `SectionVisual` |
 | `feature/profile` | Профиль |
 | `feature/experience` | Опыт |
 | `feature/education` | Образование |
@@ -164,25 +169,20 @@ Cron (пример, ежедневно в 03:30):
 | `feature/blog` | Блог |
 | `feature/certificates` | Сертификаты |
 | `feature/contacts` | Контакты |
-| `feature/ai` | AI |
+| `feature/ai` | AI-чат |
 
-Рабочий цикл:
+Новую работу удобнее вести от `main` (отдельная ветка → PR → merge в `main` → деплой с VPS).
 
 ```bash
-git checkout feature/certificates
-git pull origin feature/certificates
-# правки → commit → push
+git checkout main && git pull
+git checkout -b feature/my-change
+# … commit → push → PR → merge в main
 
-# тест на VPS (переключить ветку и пересобрать frontend/backend по необходимости)
-git fetch origin && git checkout feature/certificates && git pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache frontend
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d frontend nginx
-
-# в main после проверки — merge / PR на GitHub
-git checkout main && git pull && git merge feature/certificates && git push origin main
+# на VPS
+cd /opt/SHASTUDIO
+git fetch origin && git checkout main && git reset --hard origin/main
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
-
-На VPS для продакшена держите **`main`**.
 
 ---
 
@@ -203,6 +203,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml logs backend --t
 |---------|-------------|
 | `502 Bad Gateway` | `ps` / `logs backend`; пересобрать backend |
 | `MODULE_NOT_FOUND` | см. выше: `!override` volumes + удалить `backend_node_modules` + `--no-cache` |
+| PDF не видно в превью | проверить CSP `/uploads` → только `frame-ancestors *`; пересобрать backend + nginx |
 | Docker Hub `429` | `docker login`, затем снова `build` |
 | DNS «не найден IP» | проверить A-запись на `5.129.240.160`, сменить DNS на ПК / flushdns |
 
