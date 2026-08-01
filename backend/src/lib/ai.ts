@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { HttpError } from './http'
 
 function truncate(text: string | null | undefined, max = 280) {
   if (!text) return text
@@ -147,29 +148,47 @@ ${JSON.stringify(compact, null, 2)}
 }
 
 export async function callVseLlm(system: string, user: string, maxTokens = 500) {
+  const apiKey = (process.env.VSELLM_API_KEY || '').trim()
+  if (!apiKey || apiKey === 'your-api-key') {
+    throw new HttpError(
+      503,
+      'VSELLM_API_KEY не задан на сервере. Укажите ключ в /opt/SHASTUDIO/.env и перезапустите backend.'
+    )
+  }
+
   const baseUrl = (process.env.VSELLM_BASE_URL || 'https://api.vsellm.ru/v1').replace(/\/$/, '')
+  // Prefer a widely available OpenAI-compatible id unless overridden in .env
   const model = (process.env.VSELLM_MODEL || 'openai/gpt-4o-mini').replace(/[\u2010-\u2015]/g, '-')
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.VSELLM_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      temperature: 0.3,
-      max_tokens: maxTokens,
-    }),
-  })
+  let response: Response
+  try {
+    response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature: 0.3,
+        max_tokens: maxTokens,
+      }),
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'network error'
+    throw new HttpError(502, `Не удалось связаться с VseLLM (${baseUrl}): ${msg}`)
+  }
 
   if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`VseLLM API error ${response.status}: ${errText}`)
+    const errText = (await response.text()).slice(0, 500)
+    throw new HttpError(
+      502,
+      `VseLLM ответил ${response.status} (model=${model}). Проверьте VSELLM_API_KEY и VSELLM_MODEL в .env. ${errText}`
+    )
   }
 
   const data = (await response.json()) as {
