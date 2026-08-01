@@ -13,7 +13,7 @@ type Certificate = {
   title: string
   issuer: string
   issuerLogo?: string
-  issueDate: string
+  issueDate?: string
   expiryDate?: string
   credentialId?: string
   credentialUrl?: string
@@ -26,7 +26,7 @@ type Certificate = {
 const blank = (): Certificate => ({
   title: '',
   issuer: '',
-  issueDate: new Date().toISOString().slice(0, 10),
+  issueDate: '',
   isActive: true,
   order: 0,
 })
@@ -64,8 +64,12 @@ export default function AdminCertificatesPage() {
     try {
       const payload = {
         ...editing,
-        issueDate: editing.issueDate,
-        expiryDate: editing.expiryDate || null,
+        issuer: editing.issuer?.trim() || '',
+        issueDate: editing.issueDate?.trim() || null,
+        expiryDate: editing.expiryDate?.trim() || null,
+        credentialId: editing.credentialId?.trim() || null,
+        credentialUrl: editing.credentialUrl?.trim() || null,
+        description: editing.description?.trim() || null,
         image: editing.image?.trim() || null,
       }
       if (editing.id) await api.put(`/api/certificates/${editing.id}`, payload)
@@ -176,16 +180,31 @@ export default function AdminCertificatesPage() {
             </div>
 
             {preview && (
-              <div className="mt-2">
+              <div className="mt-2 space-y-2">
                 {isPdf(editing.image) ? (
-                  <a
-                    href={preview}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-medium underline-offset-4 hover:underline"
-                  >
-                    Открыть PDF
-                  </a>
+                  <>
+                    <div className="relative aspect-[3/4] max-h-72 w-full max-w-xs overflow-hidden rounded-lg border bg-stone-100">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-stone-500">
+                          PDF
+                        </span>
+                        <span className="text-xs text-stone-500">Превью / открыть файл</span>
+                      </div>
+                      <iframe
+                        src={`${preview}#toolbar=0&navpanes=0&view=FitH`}
+                        title="Превью PDF"
+                        className="absolute inset-0 z-[1] h-full w-full border-0 bg-transparent"
+                      />
+                    </div>
+                    <a
+                      href={preview}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                      Открыть PDF
+                    </a>
+                  </>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -201,9 +220,10 @@ export default function AdminCertificatesPage() {
           <div className="space-y-2">
             <Label>Описание</Label>
             <Textarea
-              rows={3}
+              rows={8}
               value={editing.description || ''}
               onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+              placeholder="Что даёт сертификат, программа, навыки — по строкам"
             />
           </div>
           <div className="flex gap-2">
@@ -252,8 +272,12 @@ export default function AdminCertificatesPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  {item.issueDate?.slice(0, 10)}
-                  {item.image ? ` · файл: ${isPdf(item.image) ? 'PDF' : 'изображение'}` : ''}
+                  {[
+                    item.issueDate?.slice(0, 10),
+                    item.image ? `файл: ${isPdf(item.image) ? 'PDF' : 'изображение'}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'Без даты и файла'}
                 </p>
               </CardContent>
             </Card>

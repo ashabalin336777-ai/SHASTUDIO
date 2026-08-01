@@ -165,7 +165,7 @@ model Certificate {
   title         String
   issuer        String
   issuerLogo    String?
-  issueDate     DateTime
+  issueDate     DateTime?
   expiryDate    DateTime?
   credentialId  String?
   credentialUrl String?
